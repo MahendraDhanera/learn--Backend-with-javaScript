@@ -20,7 +20,11 @@ const register = asyncHandler(async (req,res)=>{
 
 
   const {fullname,email,password,username} = req.body
-  console.log("email:",email);
+
+  if(fullname === "" && username === ""){
+    throw new ApiError(400,"fullname and username must be required")
+  }
+ 
 
   if(
     [fullname,email,password,username].some((field)=> field?.trim() === "")
@@ -28,23 +32,31 @@ const register = asyncHandler(async (req,res)=>{
     throw new ApiError(400,"All fiels are compalsary required")
   }
 
-const existUser = User.findOne({
+const existUser = await User.findOne({
   $or : [{username},{email}]
 })
 
-if(!existUser){
+if(existUser){
   throw new ApiError(409,"user with email and username is alredy exist")
 }
+// console.log(email,password,fullname,username);
+const pathAvtar = req.files?.avatar[0]?.path
 
-const avatarLocatPath = req.files?.avatar[0]?.path
-const coverImageLocalPath = req.files?.covreImage[0]?.path
+const pathCover = req.files?.coverImage[0].path
 
-if(!avatarLocatPath){
+
+
+
+
+
+if(!pathAvtar){
   throw new ApiError(400,"Avatar files is requird")
 }
+           
+const avatar = await uploadinary(pathAvtar)
+const coverImage = await uploadinary(pathCover)
 
-const avatar = await uploadinary(avatarLocatPath)
-const coverImage = await uploadinary(coverImageLocalPath)
+
 
 if(!avatar){
   throw new ApiError(400,"Avatar fiels is requird")
@@ -55,13 +67,14 @@ if(!avatar){
   email,
   avatar:avatar.url,
   coverImage:coverImage?.url || "",
-  password,
+  password:password,
   username:username.toLowerCase()
 })
 
+// console.log(password)
 
 const createdUser = await User.findById(user._id).select(
-  "-password -refreshToken"
+  "-refreshToken"
 )
 
 if(!createdUser){

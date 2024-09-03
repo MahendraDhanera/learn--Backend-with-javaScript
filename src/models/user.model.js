@@ -22,7 +22,7 @@ const userShema = new Schema({
     fullname: {
         type: String,
         required: true,
-        trim: true,
+        trim: true, 
         index: true
     },
 
@@ -54,10 +54,14 @@ const userShema = new Schema({
 
 userShema.pre("save", async function (next) {
     if (!this.isModified("password")) return next();
-    this.password = await bcrypt.hash(this.password, 10, (err, hash) => {
-        next()
-    })
-})
+    try {
+        this.password = await bcrypt.hash(this.password, 10);
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
 
 userShema.methods.isPasswordCorrect = async function (password) {
     return await bcrypt.compare(password, this.password)
@@ -69,7 +73,8 @@ userShema.methods.genrateAccessToken = function () {
             _id: this._id,
             email: this.email,
             username: this.username,
-            fullname: this.fullname
+            fullname: this.fullname,
+          
         },
         process.env.ACCESS_TOKEN_SECRET,
         {
