@@ -4,7 +4,20 @@ import { User } from '../models/user.model.js'
 import uploadinary from '../utilites/cloudinary.js'
 import ApiResponse from '../utilites/ApiResponse.js'
 
+const genrateAccessTokenAndrefreshTOken = async(userId)=>{
+  try {
+    const user = await User.findById(userId)
+    const accessToken = user.genrateAccessToken()
+    const refreshToken = user.genrateRefreshToken()
 
+    user.refreshToken  = refreshToken
+   await user.save({validateBeforeSave:false})
+    
+   return {accessToken,refreshToken}
+  } catch (error) {
+    throw new ApiError(500,"some thing rong while genrating and accessig refresh token")
+  }
+}
 
 
 const register = asyncHandler(async (req,res)=>{
@@ -45,10 +58,6 @@ const pathAvtar = req.files?.avatar[0]?.path
 const pathCover = req.files?.coverImage[0].path
 
 
-
-
-
-
 if(!pathAvtar){
   throw new ApiError(400,"Avatar files is requird")
 }
@@ -87,4 +96,56 @@ return res.status(201).json(
 
 })
 
-export default register
+const loginUser = asyncHandler(async (req,res)=>{
+//req body-data
+//username or email
+//find the user
+//password check
+//refreshToken and accessToken
+//send coolie
+
+const {username,email,password} = req.body
+
+if(!username || !email){
+  throw new ApiError(400,"username and email is requird")
+}
+
+const user = await User.findOne({
+  $or:[{username},{email}]
+})
+
+if(!user){
+  throw new ApiError(404,"user does not exist ")
+}
+
+const isPasswordValid = await user.isPasswordCorrect(password)
+
+if(!isPasswordValid){
+  throw new ApiError(404," some thing rong username and password is incorrect")
+}
+
+const {accessToken,refreshToken} = await genrateAccessTokenAndrefreshTOken(user._id)
+
+const loginUser = User.findById(user._id).select("-password -refreshToken")
+
+const option = {
+  httpOnly:true,
+  secure:true
+}
+
+res.status(200).cookie("accessToken",accessToken,option).cookie("refreshToken",refreshToken,option).json(
+  new ApiResponse(
+    200,
+    {
+        loginUser,accessToken,refreshToken
+    },
+    "user login successfully login"
+  )
+)
+
+})
+
+export  {
+  register,
+  loginUser
+}
