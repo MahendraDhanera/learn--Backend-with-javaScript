@@ -18,4 +18,6 @@ import userRouter from './routes/user.routes.js'
 //roter declration
 app.use("/api/v1/user",userRouter)
 
+
+
 export default app
